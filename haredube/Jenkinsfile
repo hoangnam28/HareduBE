@@ -1,0 +1,57 @@
+pipeline {
+    agent any
+
+    environment {
+        DOCKER_HUB_CREDENTIALS_ID = 'docker-hub'
+        GIT_CREDENTIALS_ID = 'HarEduBE'
+        BACKEND_DOCKER_USERNAME = "nvashinki"
+        DOCKER_COMPOSE_FILE = 'docker-compose.yml'
+        SSH_CREDENTIALS_ID = 'haredu-server'
+        BACKEND_DOCKER_REPO = "haredu_back_end"
+        SSH_TARGET_SERVER = 'suzy 34.16.231.23'
+        CONTAINER_NAME= 'back_end_prod'
+        BACKEND_DOCKERFILE= 'Dockerfile.prod'
+    }
+
+    stages {
+        stage('git clone') {
+            steps {
+                git branch: "product", credentialsId: "${GIT_CREDENTIALS_ID}", url: 'https://gitlab.com/quyquoc2002/haredube.git'
+            }
+        }
+
+        stage('Build and Push Backend Image') {
+            steps {
+                script {
+                    withDockerRegistry(credentialsId: "${DOCKER_HUB_CREDENTIALS_ID}", url: 'https://index.docker.io/v1/') {
+                        sh "docker build -f ${BACKEND_DOCKERFILE} -t ${BACKEND_DOCKER_USERNAME}/${BACKEND_DOCKER_REPO}:prod ."
+                        sh "docker push ${BACKEND_DOCKER_USERNAME}/${BACKEND_DOCKER_REPO}:prod"
+                    }
+                }
+            }
+        }
+
+        stage('Deploy to Server') {
+            steps {
+                script {
+                    sshagent([SSH_CREDENTIALS_ID]) {
+                        sh """
+                        ssh -o StrictHostKeyChecking=no -l ${SSH_TARGET_SERVER} '
+                        docker stop ${CONTAINER_NAME} || true &&
+                        docker rm ${CONTAINER_NAME} || true &&
+                        docker system prune -af &&
+                        docker compose -f ${DOCKER_COMPOSE_FILE} up -d
+                        '
+                        """
+                    }
+                }
+            }
+        }
+    }
+
+    post {
+        always {
+            echo 'Pipeline finished!'
+        }
+    }
+}

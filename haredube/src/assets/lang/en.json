@@ -1,0 +1,5 @@
+{
+  "item-not-found": "「%s」was not existed",
+  "update-check-same-property": "「%s」was existed, please try again",
+  "query-invalid": "「%s」There is an error in your input. Please enter again."
+}

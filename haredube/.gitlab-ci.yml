@@ -1,0 +1,17 @@
+cache:
+  key:
+    files:
+      - package.json
+  paths:
+    - node_modules/
+
+stages:
+  - lint
+
+lint:
+  image: node:16
+  stage: lint
+  script:
+    - npm install --legacy-peer-deps
+    - npm run lint
+    - npm run build

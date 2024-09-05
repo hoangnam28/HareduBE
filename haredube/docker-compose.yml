@@ -1,0 +1,105 @@
+services:
+  back_end_prod:
+    image: nvashinki/haredu_back_end:prod
+    container_name: back_end_prod
+    restart: always
+    volumes:
+      - upload-file:/app/public
+    env_file:
+      - .env
+    environment:
+      - NODE_ENV=production
+      - DB_URL=mongodb://db:27017/haredu
+      - REDIS_URL=redis://:cuocdoivandepsao@redis
+      - APP_HOST=back_end_prod
+      - APP_PORT=2002
+    ports:
+      - '2002:2002'
+    expose:
+      - 2002
+    networks:
+      - common
+    depends_on:
+      - db
+      - redis
+
+  front_end_prod:
+    image: nvashinki/haredu_front_end:prod
+    container_name: front_end_prod
+    restart: on-failure
+    env_file:
+      - .env
+    networks:
+      - common
+    depends_on:
+      - back_end_prod
+    ports:
+      - 80:80
+      - 443:443
+    expose:
+      - 80
+
+  db:
+    image: mongo:latest
+    container_name: db
+    hostname: mongodb
+    restart: on-failure
+    volumes:
+      - haredu-db:/data/db
+      - ./src/script/init-mongo.sh:/usr/local/bin/init-mongo.sh
+    env_file:
+      - .env
+    environment:
+      MONGO_REPLICA_SET_NAME: ${MONGO_REPLICA_SET_NAME:-rs0}
+    ports:
+      - 27018:27017
+    healthcheck:
+      test: >
+        bash -c 'mongosh --eval "rs.status().ok || rs.initiate().ok" --quiet'
+      interval: 10s
+      start_period: 30s
+      timeout: 10s
+      retries: 5
+    command: ['/bin/bash', '/usr/local/bin/init-mongo.sh']
+    networks:
+      - common
+    logging:
+      driver: json-file
+      options:
+        max-file: '3'
+        max-size: '10m'
+
+  redis:
+    container_name: redis
+    image: redis
+    restart: on-failure
+    command: redis-server /usr/local/etc/redis/redis.conf
+    ports:
+      - '6381:6379'
+    networks:
+      - common
+    volumes:
+      - ./redis.conf:/usr/local/etc/redis/redis.conf
+      - redis:/data
+
+  redis_staging:
+    container_name: redis_staging
+    image: redis
+    restart: on-failure
+    command: redis-server /usr/local/etc/redis/redis.conf
+    ports:
+      - '6380:6379'
+    networks:
+      - common
+    volumes:
+      - ./redis.conf:/usr/local/etc/redis/redis.conf
+      - redis:/data
+
+networks:
+  common:
+
+volumes:
+  redis:
+    driver: local
+  upload-file:
+  haredu-db:
